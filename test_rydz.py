@@ -1,6 +1,11 @@
 #!/usr/local/bin/python3
 from unittest import TestCase,main
-from rydz import PostcodeRatebook, Address
+from rydz import PostcodeRatebook, UKAddress
+
+class TestAddress(TestCase):
+  def test_postcode_area(self):
+    a=UKAddress(postcode='RM14 1PX')
+    self.assertEqual('RM14', a.postcode_area())
 
 class TestPostcodePricing(TestCase):
   def setUp(self):
@@ -9,8 +14,21 @@ class TestPostcodePricing(TestCase):
                                      'RM14':{'NW1':62.5, 'TW11':63.25}})
 
   def test_valid_address(self):
-    self.assertEqual(52.5, self.ratebook.price(Address(postcode='NW1 1AB'),
-                                               Address(postcode='RM14 2CD')))
+    self.assertEqual(52.5, self.ratebook.price(UKAddress(postcode='NW1 1AB'),
+                                               UKAddress(postcode='RM14 2CD')))
+    self.assertEqual(63.25, self.ratebook.price(UKAddress(postcode='RM14 1AB'),
+                                                UKAddress(postcode='TW11 2CD')))
+
+  def test_unknown_origin_postcode(self):
+    with self.assertRaises(KeyError):
+      self.assertEqual(63.25, self.ratebook.price(UKAddress(postcode='RM12 1AB'),
+                                                  UKAddress(postcode='TW11 2CD')))
+
+  def test_unknown_destination_postcode(self):
+    with self.assertRaises(KeyError):
+      self.assertEqual(63.25, self.ratebook.price(UKAddress(postcode='RM14 1AB'),
+                                                  UKAddress(postcode='TW10 2CD')))
+
 
 
 if __name__=='__main__':
