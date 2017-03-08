@@ -1,4 +1,5 @@
 #!/usr/local/bin/python3
+from urllib.parse import urlencode
 
 class Address:
   def __init__(self, number=None, street=None, town=None, postcode=None, country=None):
@@ -17,6 +18,10 @@ class Address:
     if isinstance(other, self.__class__):
       return self.__dict__ != other.__dict__
     return NotImplemented
+
+  def __str__(self):
+    return ', '.join(filter(lambda x : x is not None,
+                     [self.number, self.street, self.town, self.postcode, self.country]))
 
 
 class UKAddress(Address):
@@ -40,6 +45,7 @@ class DistanceSource:
   def distance(self, origin, destination):
     pass
 
+
 class FlatRateDistanceRateBook:
   def __init__(self, distance_source, rate_pence_per_mile):
     self.rate=rate_pence_per_mile
@@ -47,3 +53,16 @@ class FlatRateDistanceRateBook:
 
   def price(self, origin, destination):
     return self.rate * self.distance_source.distance(origin, destination)
+
+
+class GoogleDistanceURL:
+  def __init__(self, key):
+    self.key=key
+
+  def url(self, origin, destination):
+    print(self.key)
+    print(origin)
+    print(destination)
+    return 'https://maps.googleapis.com/maps/api/distancematrix/json?' +\
+            urlencode({'units': 'imperial', 'origins': origin,
+                       'destinations': destination, 'key': self.key}) 

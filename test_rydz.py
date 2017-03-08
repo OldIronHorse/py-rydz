@@ -2,7 +2,7 @@
 from unittest import TestCase,main
 from unittest.mock import MagicMock
 from rydz import PostcodeRateBook, Address, UKAddress, USAddress,\
-  DistanceSource, FlatRateDistanceRateBook
+  DistanceSource, FlatRateDistanceRateBook, GoogleDistanceURL
 
 class TestAddress(TestCase):
   def test_fully_populated(self):
@@ -55,6 +55,26 @@ class TestDistancePricing(TestCase):
                                         Address(postcode='RM14 2CD')))
     distance_source.distance.assert_called_with(Address(postcode='NW1 1AB'),
                                               Address(postcode='RM14 2CD')) 
+
+
+class TestGoogleDistanceURL(TestCase):
+  def test_city_to_city(self):
+    gdu=GoogleDistanceURL('my_key')
+    self.assertEqual('https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial&origins=London%2C+UK&destinations=Edinburgh%2C+UK&key=my_key',
+                     gdu.url(Address(town='London', country='UK'),
+                             Address(town='Edinburgh', country='UK')))
+
+#    gu=MagicMock(GoogleDistanceUrl)
+#    gu.url=MagicMock(return 'https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial&origins=London,%20UK&destinations=Edniburgh,%20&key=###key###')
+#    ou=MagicMock(urllib.request)
+#    ou.urlopen(return 
+#    self.assertEqual(Distance(dist_text='414 mi', dist_value=666433,
+#                              time_text='7 hrs 11 mins', time_value=25874),
+#                     GoogleDistance('##key##').distance(Address(town='London', country='UK'))
+#                                                        Address(town='Edinburgh', country='UK'))
+#    gu.assert_called_with(Address(town='London', country='UK'),
+#                          Address(town='Edinburgh', country='UK'))
+
 
 
 if __name__=='__main__':
