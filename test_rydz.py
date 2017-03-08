@@ -28,6 +28,11 @@ class TestAddress(TestCase):
                                  town='Teddington', postcode='TW11 9BC',
                                  country='UK')))
 
+  def test_str_partial(self):
+    self.assertEqual('56, King Edward Road, UK',
+                     str(Address(number='56', street='King Edward Road',
+                                 country='UK')))
+
 
 class TestPostcodePricing(TestCase):
   def setUp(self):
