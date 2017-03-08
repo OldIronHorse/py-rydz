@@ -60,9 +60,6 @@ class GoogleDistanceURL:
     self.key=key
 
   def url(self, origin, destination):
-    print(self.key)
-    print(origin)
-    print(destination)
     return 'https://maps.googleapis.com/maps/api/distancematrix/json?' +\
             urlencode({'units': 'imperial', 'origins': origin,
                        'destinations': destination, 'key': self.key}) 
