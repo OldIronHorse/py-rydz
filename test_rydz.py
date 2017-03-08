@@ -22,6 +22,12 @@ class TestAddress(TestCase):
     a=USAddress(postcode='90210')
     self.assertEqual('902', a.postcode_area())
 
+  def test_str_full(self):
+    self.assertEqual('56, King Edward Road, Teddington, TW11 9BC, UK',
+                     str(Address(number='56', street='King Edward Road',
+                                 town='Teddington', postcode='TW11 9BC',
+                                 country='UK')))
+
 
 class TestPostcodePricing(TestCase):
   def setUp(self):
