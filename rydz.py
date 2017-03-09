@@ -1,14 +1,10 @@
 #!/usr/local/bin/python3
 from urllib.parse import urlencode
+#from urllib.request import urlopen
+import urllib.request
+import json
 
-class Address:
-  def __init__(self, number=None, street=None, town=None, postcode=None, country=None):
-    self.number=number
-    self.street=street
-    self.town=town
-    self.postcode=postcode
-    self.country=country
-
+class MemberwiseEquality:
   def __eq__(self, other):
     if isinstance(other, self.__class__):
       return self.__dict__ == other.__dict__
@@ -18,6 +14,15 @@ class Address:
     if isinstance(other, self.__class__):
       return self.__dict__ != other.__dict__
     return NotImplemented
+
+
+class Address(MemberwiseEquality):
+  def __init__(self, number=None, street=None, town=None, postcode=None, country=None):
+    self.number=number
+    self.street=street
+    self.town=town
+    self.postcode=postcode
+    self.country=country
 
   def __str__(self):
     return ', '.join(filter(lambda x : x is not None,
@@ -63,3 +68,24 @@ class GoogleDistanceURL:
     return 'https://maps.googleapis.com/maps/api/distancematrix/json?' +\
             urlencode({'units': 'imperial', 'origins': origin,
                        'destinations': destination, 'key': self.key}) 
+
+
+class Distance(MemberwiseEquality):
+  def __init__(self, dist_text, dist_value, time_text, time_value):
+    self.dist_text=dist_text
+    self.dist_value=dist_value
+    self.time_text=time_text
+    self.time_value=time_value
+
+
+class GoogleDistance:
+  def __init__(self, key):
+    self.url=GoogleDistanceURL(key)
+
+  def distance(self, origin, destination):
+    with urllib.request.urlopen(self.url.url(str(origin), str(destination))) as response:
+      json_response=json.loads(response.read());
+      distance=json_response['rows'][0]['elements'][0]['distance']
+      duration=json_response['rows'][0]['elements'][0]['duration']
+      return Distance(distance['text'], distance['value'],
+                      duration['text'], duration['value'])

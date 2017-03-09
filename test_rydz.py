@@ -1,8 +1,10 @@
 #!/usr/local/bin/python3
 from unittest import TestCase,main
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, mock_open, patch
+import urllib.request
 from rydz import PostcodeRateBook, Address, UKAddress, USAddress,\
-  DistanceSource, FlatRateDistanceRateBook, GoogleDistanceURL
+  DistanceSource, FlatRateDistanceRateBook, GoogleDistanceURL, Distance,\
+  GoogleDistance
 
 class TestAddress(TestCase):
   def test_fully_populated(self):
@@ -67,6 +69,13 @@ class TestDistancePricing(TestCase):
     distance_source.distance.assert_called_with(Address(postcode='NW1 1AB'),
                                               Address(postcode='RM14 2CD')) 
 
+class TestDistance(TestCase):
+  def test_equal_true(self):
+    self.assertEqual(Distance("1", 2, "3", 4), Distance("1", 2, "3", 4))
+
+  def test_equal_false(self):
+    self.assertNotEqual(Distance("1", 5, "3", 4), Distance("1", 2, "3", 4))
+
 
 class TestGoogleDistanceURL(TestCase):
   def test_city_to_city(self):
@@ -75,17 +84,44 @@ class TestGoogleDistanceURL(TestCase):
                      gdu.url(Address(town='London', country='UK'),
                              Address(town='Edinburgh', country='UK')))
 
-#    gu=MagicMock(GoogleDistanceUrl)
-#    gu.url=MagicMock(return 'https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial&origins=London,%20UK&destinations=Edniburgh,%20&key=###key###')
-#    ou=MagicMock(urllib.request)
-#    ou.urlopen(return 
-#    self.assertEqual(Distance(dist_text='414 mi', dist_value=666433,
-#                              time_text='7 hrs 11 mins', time_value=25874),
-#                     GoogleDistance('##key##').distance(Address(town='London', country='UK'))
-#                                                        Address(town='Edinburgh', country='UK'))
-#    gu.assert_called_with(Address(town='London', country='UK'),
-#                          Address(town='Edinburgh', country='UK'))
 
+class TestGoogleDistance(TestCase):
+  @patch('urllib.request.urlopen')
+  def test_city_to_city(self, mock_urlopen):
+    cm=MagicMock()
+    cm.getcode.return_value=200
+    cm.read.return_value='''
+{
+  "destination_addresses" : [ "Edinburgh, UK" ],
+  "origin_addresses" : [ "London, UK" ],
+  "rows" : [
+    {
+      "elements" : [
+        {
+          "distance" : {
+           "text" : "414 mi",
+           "value" : 666440
+          },
+          "duration" : {
+            "text" : "7 hours 13 mins",
+            "value" : 25979
+          },
+          "status" : "OK"
+        }
+      ]
+    }
+  ],
+  "status" : "OK"
+} '''
+    cm.__enter__.return_value=cm
+    mock_urlopen.return_value=cm
+    self.assertEqual(Distance(dist_text='414 mi', dist_value=666440,
+                              time_text='7 hours 13 mins', time_value=25979),
+                     GoogleDistance('my_key').distance(Address(town='London',
+                                                               country='UK'),
+                                                       Address(town='Edinburgh',
+                                                               country='UK')))
+    mock_urlopen.assert_called_with('https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial&origins=London%2C+UK&destinations=Edinburgh%2C+UK&key=my_key')
 
 
 if __name__=='__main__':
