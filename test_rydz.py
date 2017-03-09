@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, mock_open, patch
 import urllib.request
 from rydz import PostcodeRateBook, Address, UKAddress, USAddress,\
   DistanceSource, FlatRateDistanceRateBook, GoogleDistanceURL, Distance,\
-  GoogleDistance
+  GoogleDistance, Pricer
 
 class TestAddress(TestCase):
   def test_fully_populated(self):
@@ -122,6 +122,37 @@ class TestGoogleDistance(TestCase):
                                                        Address(town='Edinburgh',
                                                                country='UK')))
     mock_urlopen.assert_called_with('https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial&origins=London%2C+UK&destinations=Edinburgh%2C+UK&key=my_key')
+
+
+class TestJsonQuote(TestCase):
+  def setUp(self):
+    self.pricer=Pricer(PostcodeRateBook({'TW11':{'NW1':22.5, 'RM14':65.25},
+                                         'NW1': {'RM14':52.5, 'TW11':23.25},
+                                         'RM14':{'NW1':62.5, 'TW11':63.25}}))
+
+  def test_postcode_to_postcode_valid(self):
+    self.assertEqual({"origin":{"postcode":"NW1 1AB"},
+                      "destination":{"postcode":"RM14 2CD"},
+                      "price":52.5},
+                      self.pricer.json_quote({"origin":{"postcode":"NW1 1AB"},
+                                              "destination":{"postcode":"RM14 2CD"}}))
+    self.assertEqual({"origin":{"postcode":"RM14 1AB"},
+                      "destination":{"postcode":"TW11 2CD"},
+                      "price":63.25},
+                      self.pricer.json_quote({"origin":{"postcode":"RM14 1AB"},
+                                              "destination":{"postcode":"TW11 2CD"}}))
+
+  def test_postcode_to_postcode_not_found(self):
+    self.assertEqual({"origin":{"postcode":"NW9 1AB"},
+                      "destination":{"postcode":"RM14 2CD"},
+                      "error":"Origin postcode 'NW9' not found"},
+                      self.pricer.json_quote({"origin":{"postcode":"NW9 1AB"},
+                                              "destination":{"postcode":"RM14 2CD"}}))
+    self.assertEqual({"origin":{"postcode":"RM14 1AB"},
+                      "destination":{"postcode":"TW1 2CD"},
+                      "error":"Destination postcode 'TW1' not found"},
+                      self.pricer.json_quote({"origin":{"postcode":"RM14 1AB"},
+                                              "destination":{"postcode":"TW1 2CD"}}))
 
 
 if __name__=='__main__':

@@ -89,3 +89,26 @@ class GoogleDistance:
       duration=json_response['rows'][0]['elements'][0]['duration']
       return Distance(distance['text'], distance['value'],
                       duration['text'], duration['value'])
+
+class Pricer:
+  def __init__(self, ratebook):
+    self.ratebook=ratebook
+
+  def json_quote(self, json):
+    origin=UKAddress(postcode=json['origin']['postcode'])
+    destination=UKAddress(postcode=json['destination']['postcode'])
+    try:
+      return {'origin':json['origin'],
+              'destination':json['destination'],
+              'price':self.ratebook.price(origin, destination)}
+    except KeyError as e:
+      key=e.args[0]
+      if key==origin.postcode_area():
+        error_address='Origin'
+      elif key==destination.postcode_area():
+        error_address='Destination'
+      else:
+        error_address='Unknown'
+      return {'origin':json['origin'],
+              'destination':json['destination'],
+              'error':"{} postcode '{}' not found".format(error_address, key)}
