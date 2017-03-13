@@ -28,6 +28,13 @@ class Address(MemberwiseEquality):
     return ', '.join(filter(lambda x : x is not None,
                      [self.number, self.street, self.town, self.postcode, self.country]))
 
+  def json(self):
+    return {'number':self.number,
+            'street':self.street,
+            'town':self.town,
+            'postcode':self.postcode,
+            'country':self.country}
+
 
 class UKAddress(Address):
   def postcode_area(self):
@@ -112,3 +119,29 @@ class Pricer:
       return {'origin':json['origin'],
               'destination':json['destination'],
               'error':"{} postcode '{}' not found".format(error_address, key)}
+
+
+class BookingStore:
+  def __init__(self):
+    self.bookings={}
+  def json(self):
+    return {'bookings':{bid:self.bookings[bid].json() for bid in self.bookings}}
+
+
+class Booking:
+  def __init__(self, origin, destination, pickup_time, passengers, booker,
+               quoted_price):
+    self.origin=origin
+    self.destination=destination
+    self.pickup_time=pickup_time
+    self.passengers=passengers
+    self.booker=booker
+    self.quoted_price=quoted_price
+
+  def json(self):
+    return {'origin':self.origin.json(),
+            'destination':self.destination.json(),
+            'pickup_time':str(self.pickup_time),
+            'passengers':self.passengers,
+            'booker':self.booker,
+            'quoted_price':self.quoted_price}

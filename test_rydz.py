@@ -2,9 +2,11 @@
 from unittest import TestCase,main
 from unittest.mock import MagicMock, mock_open, patch
 import urllib.request
+from datetime import datetime
+from pytz import timezone
 from rydz import PostcodeRateBook, Address, UKAddress, USAddress,\
   DistanceSource, FlatRateDistanceRateBook, GoogleDistanceURL, Distance,\
-  GoogleDistance, Pricer
+  GoogleDistance, Pricer, BookingStore, Booking
 
 class TestAddress(TestCase):
   def test_fully_populated(self):
@@ -153,6 +155,52 @@ class TestJsonQuote(TestCase):
                       "error":"Destination postcode 'TW1' not found"},
                       self.pricer.json_quote({"origin":{"postcode":"RM14 1AB"},
                                               "destination":{"postcode":"TW1 2CD"}}))
+
+
+class TestBookingStore(TestCase):
+  def test_json_empty(self):
+    self.assertEqual({'bookings':{}},
+                     BookingStore().json())
+
+  def test_json_single(self):
+    self.maxDiff=None
+    bs=BookingStore()
+    bs.bookings={1234:Booking(origin=Address(number=55,
+                                             street='King Edward Road',
+                                             town='Teddington',
+                                             postcode='TW11 1AB',
+                                             country='UK'),
+                              destination=Address(number=14,
+                                                  street='Forth Road',
+                                                  town='Upminster',
+                                                  postcode='RM14 2QY',
+                                                  country='UK'),
+                              pickup_time=datetime(2017, 9, 15, 15, 30,
+                                                   tzinfo=timezone('GB')),
+                              passengers=['a.passenger@acompany.com'],
+                              booker='a.booker@acompany.com',
+                              quoted_price=65.25)}
+    self.assertEqual({'bookings':{1234:{
+                        'origin':{
+                          'number':55,
+                          'street':'King Edward Road',
+                          'town':'Teddington',
+                          'postcode':'TW11 1AB',
+                          'country':'UK'
+                        },
+                        'destination':{
+                          'number':14,
+                          'street':'Forth Road',
+                          'town':'Upminster',
+                          'postcode':'RM14 2QY',
+                          'country':'UK'
+                        },
+                        'pickup_time':'2017-09-15 15:30:00-00:01',
+                        'passengers':['a.passenger@acompany.com'],
+                        'booker':'a.booker@acompany.com',
+                        'quoted_price':65.25
+                      }}
+                    },bs.json())
 
 
 if __name__=='__main__':
