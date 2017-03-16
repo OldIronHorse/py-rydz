@@ -6,7 +6,7 @@ from datetime import datetime
 from pytz import timezone
 from rydz import PostcodeRateBook, \
   DistanceSource, FlatRateDistanceRateBook, GoogleDistanceURL, Distance,\
-  GoogleDistance, Pricer, BookingStore, Booking, JsonBookingStore, \
+  GoogleDistance, Pricer, BookingStore, \
   address_str, postcode_area
 
 class TestAddress(TestCase):
@@ -160,50 +160,11 @@ class TestJsonQuote(TestCase):
 
 class TestBookingStore(TestCase):
   def setUp(self):
-    self.bs=JsonBookingStore(BookingStore())
+    self.bs=BookingStore()
 
   def test_json_empty(self):
-    self.assertEqual({'bookings':{}},
-                     self.bs.all())
-
-  def test_json_single(self):
-    self.maxDiff=None
-    self.bs.booking_store.bookings={1234:Booking(origin={'number': 55,
-                                                  'street': 'King Edward Road',
-                                                  'town': 'Teddington',
-                                                  'postcode': 'TW11 1AB',
-                                                  'country': 'UK'},
-                                   destination={'number': 14,
-                                                       'street': 'Forth Road',
-                                                       'town': 'Upminster',
-                                                       'postcode': 'RM14 2QY',
-                                                       'country': 'UK'},
-                                   pickup_time=datetime(2017, 9, 15, 15, 30,
-                                                        tzinfo=timezone('GB')),
-                                   passengers=['a.passenger@acompany.com'],
-                                   booker='a.booker@acompany.com',
-                                   quoted_price=65.25)}
-    self.assertEqual({'bookings':{1234:{
-                        'origin':{
-                          'number':55,
-                          'street':'King Edward Road',
-                          'town':'Teddington',
-                          'postcode':'TW11 1AB',
-                          'country':'UK'
-                        },
-                        'destination':{
-                          'number':14,
-                          'street':'Forth Road',
-                          'town':'Upminster',
-                          'postcode':'RM14 2QY',
-                          'country':'UK'
-                        },
-                        'pickup_time':'2017-09-15 15:30:00-00:01',
-                        'passengers':['a.passenger@acompany.com'],
-                        'booker':'a.booker@acompany.com',
-                        'quoted_price':65.25
-                      }}
-                    },self.bs.all())
+    self.assertEqual({},
+                     self.bs.bookings)
 
   def test_json_add(self):
     self.maxDiff=None
@@ -226,22 +187,22 @@ class TestBookingStore(TestCase):
                         'booker':'a.booker@acompany.com',
                         'quoted_price':65.25
                       })
-    self.assertEqual({1:Booking(origin={'number': 55,
+    self.assertEqual({1:{'origin': {'number': 55,
                                             'street': 'King Edward Road',
                                             'town': 'Teddington',
                                             'postcode': 'TW11 1AB',
                                             'country': 'UK'},
-                             destination={'number': 14,
+                             'destination': {'number': 14,
                                                  'street': 'Forth Road',
                                                  'town': 'Upminster',
                                                  'postcode': 'RM14 2QY',
                                                  'country': 'UK'},
-                             pickup_time=str(datetime(2017, 9, 15, 15, 30,
+                             'pickup_time': str(datetime(2017, 9, 15, 15, 30,
                                                   tzinfo=timezone('GB'))),
-                             passengers=['a.passenger@acompany.com'],
-                             booker='a.booker@acompany.com',
-                             quoted_price=65.25)},
-                      self.bs.booking_store.bookings)
+                             'passengers': ['a.passenger@acompany.com'],
+                             'booker': 'a.booker@acompany.com',
+                             'quoted_price': 65.25}},
+                      self.bs.bookings)
 
 
 if __name__=='__main__':
