@@ -7,7 +7,7 @@ from pytz import timezone
 from rydz import PostcodeRateBook, \
   DistanceSource, FlatRateDistanceRateBook, GoogleDistanceURL, Distance,\
   GoogleDistance, Pricer, BookingStore, \
-  address_str, postcode_area
+  address_str, postcode_area, is_usable_address
 
 class TestAddress(TestCase):
   def test_postcode_area_UK(self):
@@ -129,33 +129,33 @@ class TestJsonQuote(TestCase):
     self.assertEqual({"origin":{"postcode":"NW1 1AB", 'country': 'UK'},
                       "destination":{"postcode":"RM14 2CD", 'country': 'UK'},
                       "price":52.5},
-                      self.pricer.json_quote({"origin":{"postcode":"NW1 1AB",
-                                                        'country': 'UK'},
-                                              "destination":{"postcode":"RM14 2CD",
-                                                             'country': 'UK'}}))
+                      self.pricer.quote({"origin":{"postcode":"NW1 1AB",
+                                                   'country': 'UK'},
+                                         "destination":{"postcode":"RM14 2CD",
+                                                        'country': 'UK'}}))
     self.assertEqual({"origin":{"postcode":"RM14 1AB", 'country': 'UK'},
                       "destination":{"postcode":"TW11 2CD", 'country': 'UK'},
                       "price":63.25},
-                      self.pricer.json_quote({"origin":{"postcode":"RM14 1AB",
-                                                        'country': 'UK'},
-                                              "destination":{"postcode":"TW11 2CD",
-                                                             'country': 'UK'}}))
+                      self.pricer.quote({"origin":{"postcode":"RM14 1AB",
+                                                   'country': 'UK'},
+                                         "destination":{"postcode":"TW11 2CD",
+                                                        'country': 'UK'}}))
 
   def test_postcode_to_postcode_not_found(self):
     self.assertEqual({"origin":{"postcode":"NW9 1AB", 'country': 'UK'},
                       "destination":{"postcode":"RM14 2CD", 'country': 'UK'},
                       "error":"Origin postcode 'NW9' not found"},
-                      self.pricer.json_quote({"origin":{"postcode":"NW9 1AB",
-                                                        'country': 'UK'},
-                                              "destination":{"postcode":"RM14 2CD",
-                                                             'country': 'UK'}}))
+                      self.pricer.quote({"origin":{"postcode":"NW9 1AB",
+                                                   'country': 'UK'},
+                                         "destination":{"postcode":"RM14 2CD",
+                                                        'country': 'UK'}}))
     self.assertEqual({"origin":{"postcode":"RM14 1AB", 'country': 'UK'},
                       "destination":{"postcode":"TW1 2CD", 'country': 'UK'},
                       "error":"Destination postcode 'TW1' not found"},
-                      self.pricer.json_quote({"origin":{"postcode":"RM14 1AB",
-                                                        'country': 'UK'},
-                                              "destination":{"postcode":"TW1 2CD",
-                                                             'country': 'UK'}}))
+                      self.pricer.quote({"origin":{"postcode":"RM14 1AB",
+                                                   'country': 'UK'},
+                                         "destination":{"postcode":"TW1 2CD",
+                                                        'country': 'UK'}}))
 
 
 class TestBookingStore(TestCase):
@@ -203,6 +203,50 @@ class TestBookingStore(TestCase):
                              'booker': 'a.booker@acompany.com',
                              'quoted_price': 65.25}},
                       self.bs.bookings)
+
+
+class TestUsableAddress(TestCase):
+  def test_empty(self):
+    self.assertFalse(is_usable_address({}))
+
+  def test_unsupported_country(self):
+    self.assertFalse(is_usable_address({'number':14,
+                                        'street':'Forth Road',
+                                        'town':'Upminster',
+                                        'postcode':'RM14 2QY',
+                                        'country':'FR'}))
+
+  def test_missing_number(self):
+    self.assertFalse(is_usable_address({'street':'Forth Road',
+                                        'town':'Upminster',
+                                        'postcode':'RM14 2QY',
+                                        'country':'UK'}))
+
+  def test_missing_street(self):
+    self.assertTrue(is_usable_address({'number':14,
+                                       'town':'Upminster',
+                                       'postcode':'RM14 2QY',
+                                       'country':'UK'}))
+
+  def test_missing_town(self):
+    self.assertTrue(is_usable_address({'number':14,
+                                       'street':'Forth Road',
+                                       'postcode':'RM14 2QY',
+                                       'country':'UK'}))
+
+  def test_missing_country(self):
+    self.assertFalse(is_usable_address({'number':14,
+                                        'street':'Forth Road',
+                                        'town':'Upminster',
+                                        'postcode':'RM14 2QY'}))
+
+  def test_malformed_postcode_uk(self):  
+    self.assertFalse(is_usable_address({'number':14,
+                                        'street':'Forth Road',
+                                        'town':'Upminster',
+                                        'postcode':'90210',
+                                        'country':'UK'}))
+
 
 
 if __name__=='__main__':

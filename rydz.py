@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 #from urllib.request import urlopen
 import urllib.request
 import json
+import re
 
 def address_str(address):
   return ', '.join(filter(lambda x : x is not None,
@@ -21,6 +22,23 @@ postcode_area_by_country={'UK': postcode_area_uk,
 
 def postcode_area(address):
   return postcode_area_by_country[address['country']](address)
+
+def is_usable_uk_address(address):
+  return address['postcode'] is not None and \
+    address['number'] is not None and \
+    re.fullmatch(r'[A-Z]{2}[0-9]{1,2} [0-9][A-Z]{2}', address['postcode']) is not None
+
+def is_usable_us_address(address):
+  pass
+
+address_validators={'UK': is_usable_uk_address,
+                    'US': is_usable_us_address}
+
+def is_usable_address(address):
+  try:
+    return address_validators[address['country']](address)
+  except KeyError:
+    return False
 
 class MemberwiseEquality:
   def __eq__(self, other):
@@ -89,9 +107,9 @@ class Pricer:
   def __init__(self, ratebook):
     self.ratebook=ratebook
 
-  def json_quote(self, json):
-    origin=json['origin']
-    destination=json['destination']
+  def quote(self, journey):
+    origin=journey['origin']
+    destination=journey['destination']
     try:
       return {'origin': origin,
               'destination': destination,
