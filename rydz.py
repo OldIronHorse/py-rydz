@@ -4,6 +4,24 @@ from urllib.parse import urlencode
 import urllib.request
 import json
 
+def address_str(address):
+  return ', '.join(filter(lambda x : x is not None,
+                   [address.get('number', None), address.get('street', None),
+                    address.get('town', None), address.get('postcode', None),
+                    address.get('country', None)]))
+
+def postcode_area_us(address):
+  return address['postcode'][:3]
+
+def postcode_area_uk(address):
+  return address['postcode'].split(' ')[0]
+
+postcode_area_by_country={'UK': postcode_area_uk,
+                          'US': postcode_area_us}
+
+def postcode_area(address):
+  return postcode_area_by_country[address['country']](address)
+
 class MemberwiseEquality:
   def __eq__(self, other):
     if isinstance(other, self.__class__):
@@ -37,13 +55,38 @@ class Address(MemberwiseEquality):
 
 
 class UKAddress(Address):
+  def __repr__(self):
+    return 'UKAddress(number={!r},street={!r},town={!r},postcode={!r},country={!r})'.format(
+      self.number, self.street, self.town, self.postcode, self.country)
+
   def postcode_area(self):
     return self.postcode.split(' ')[0]
 
 
 class USAddress(Address):
+  def __repr__(self):
+    return 'USAddress(number={!r},street={!r},town={!r},postcode={!r},country={!r})'.format(
+      self.number, self.street, self.town, self.postcode, self.country)
+
   def postcode_area(self):
     return self.postcode[:3]
+
+
+def uk_address_from_json(json):
+  return UKAddress(number=json['number'], street=json['street'],
+                   town=json['town'], postcode=['postcode'],
+                   country=['country'])
+
+def us_address_from_json(json):
+  return USAddress(number=json['number'], street=json['street'],
+                   town=json['town'], postcode=['postcode'],
+                   country=['country'])
+
+address_factory_by_country={'UK': uk_address_from_json,
+                            'US': us_address_from_json}
+
+def address_from_json(json):
+  return address_factory_by_country[json['country']](json)
 
 
 class PostcodeRateBook:
@@ -124,11 +167,32 @@ class Pricer:
 class BookingStore:
   def __init__(self):
     self.bookings={}
-  def json(self):
-    return {'bookings':{bid:self.bookings[bid].json() for bid in self.bookings}}
+    self.last_id=0
+
+  def add(self, booking):
+    self.last_id+=1
+    self.bookings[self.last_id]=booking
+    return self.last_id
 
 
-class Booking:
+class JsonBookingStore:
+  def __init__(self, booking_store):
+    self.booking_store=booking_store
+
+  def all(self):
+    return {'bookings':{bid:self.booking_store.bookings[bid].json()
+                          for bid in self.booking_store.bookings}}
+
+  def add(self, booking_json):
+    return self.booking_store.add(Booking(address_from_json(booking_json['origin']),
+                                          address_from_json(booking_json['destination']),
+                                          booking_json['pickup_time'],
+                                          booking_json['passengers'],
+                                          booking_json['booker'],
+                                          booking_json['quoted_price']))
+
+
+class Booking(MemberwiseEquality):
   def __init__(self, origin, destination, pickup_time, passengers, booker,
                quoted_price):
     self.origin=origin
@@ -137,6 +201,9 @@ class Booking:
     self.passengers=passengers
     self.booker=booker
     self.quoted_price=quoted_price
+
+  def __repr__(self):
+    return "Booking(origin={!r},destination={!r},pickup_time={!r},passengers={!r},booker={!r},quoted_price={!r})".format(self.origin, self.destination, self.pickup_time, self.passengers, self.booker, self.quoted_price)
 
   def json(self):
     return {'origin':self.origin.json(),

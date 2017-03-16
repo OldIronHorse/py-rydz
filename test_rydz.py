@@ -4,38 +4,31 @@ from unittest.mock import MagicMock, mock_open, patch
 import urllib.request
 from datetime import datetime
 from pytz import timezone
-from rydz import PostcodeRateBook, Address, UKAddress, USAddress,\
+from rydz import PostcodeRateBook, Address, UKAddress,\
   DistanceSource, FlatRateDistanceRateBook, GoogleDistanceURL, Distance,\
-  GoogleDistance, Pricer, BookingStore, Booking
+  GoogleDistance, Pricer, BookingStore, Booking, JsonBookingStore, \
+  address_str, postcode_area
 
 class TestAddress(TestCase):
-  def test_fully_populated(self):
-    a=Address(number=56, street='King Edward Road', town='Teddington',
-              postcode='TW11 2BC', country='UK')
-    self.assertEqual(56, a.number)
-    self.assertEqual('King Edward Road', a.street)
-    self.assertEqual('Teddington', a.town)
-    self.assertEqual('TW11 2BC', a.postcode)
-    self.assertEqual('UK', a.country)
-
   def test_postcode_area_UK(self):
-    a=UKAddress(postcode='RM14 1PX')
-    self.assertEqual('RM14', a.postcode_area())
+    a={'postcode': 'RM14 1PX', 'country': 'UK'}
+    self.assertEqual('RM14', postcode_area(a))
 
   def test_postcode_area_US(self):
-    a=USAddress(postcode='90210')
-    self.assertEqual('902', a.postcode_area())
+    a={'postcode': '90210', 'country': 'US'}
+    self.assertEqual('902', postcode_area(a))
 
   def test_str_full(self):
     self.assertEqual('56, King Edward Road, Teddington, TW11 9BC, UK',
-                     str(Address(number='56', street='King Edward Road',
-                                 town='Teddington', postcode='TW11 9BC',
-                                 country='UK')))
+                     address_str({'number': '56', 'street': 'King Edward Road',
+                                  'town': 'Teddington', 'postcode': 'TW11 9BC',
+                                  'country': 'UK'}))
 
   def test_str_partial(self):
-    self.assertEqual('56, King Edward Road, UK',
-                     str(Address(number='56', street='King Edward Road',
-                                 country='UK')))
+    self.assertEqual('56, King Edward Road, TW11 9BC',
+                     address_str({'number': '56', 'street': 'King Edward Road',
+                                  'postcode': 'TW11 9BC'}))
+
 
 
 class TestPostcodePricing(TestCase):
@@ -158,28 +151,30 @@ class TestJsonQuote(TestCase):
 
 
 class TestBookingStore(TestCase):
+  def setUp(self):
+    self.bs=JsonBookingStore(BookingStore())
+
   def test_json_empty(self):
     self.assertEqual({'bookings':{}},
-                     BookingStore().json())
+                     self.bs.all())
 
   def test_json_single(self):
     self.maxDiff=None
-    bs=BookingStore()
-    bs.bookings={1234:Booking(origin=Address(number=55,
-                                             street='King Edward Road',
-                                             town='Teddington',
-                                             postcode='TW11 1AB',
-                                             country='UK'),
-                              destination=Address(number=14,
-                                                  street='Forth Road',
-                                                  town='Upminster',
-                                                  postcode='RM14 2QY',
+    self.bs.booking_store.bookings={1234:Booking(origin=Address(number=55,
+                                                  street='King Edward Road',
+                                                  town='Teddington',
+                                                  postcode='TW11 1AB',
                                                   country='UK'),
-                              pickup_time=datetime(2017, 9, 15, 15, 30,
-                                                   tzinfo=timezone('GB')),
-                              passengers=['a.passenger@acompany.com'],
-                              booker='a.booker@acompany.com',
-                              quoted_price=65.25)}
+                                   destination=Address(number=14,
+                                                       street='Forth Road',
+                                                       town='Upminster',
+                                                       postcode='RM14 2QY',
+                                                       country='UK'),
+                                   pickup_time=datetime(2017, 9, 15, 15, 30,
+                                                        tzinfo=timezone('GB')),
+                                   passengers=['a.passenger@acompany.com'],
+                                   booker='a.booker@acompany.com',
+                                   quoted_price=65.25)}
     self.assertEqual({'bookings':{1234:{
                         'origin':{
                           'number':55,
@@ -200,7 +195,45 @@ class TestBookingStore(TestCase):
                         'booker':'a.booker@acompany.com',
                         'quoted_price':65.25
                       }}
-                    },bs.json())
+                    },self.bs.all())
+
+  def test_json_add(self):
+    self.maxDiff=None
+    self.bs.add({'origin':{
+                          'number':55,
+                          'street':'King Edward Road',
+                          'town':'Teddington',
+                          'postcode':'TW11 1AB',
+                          'country':'UK'
+                        },
+                        'destination':{
+                          'number':14,
+                          'street':'Forth Road',
+                          'town':'Upminster',
+                          'postcode':'RM14 2QY',
+                          'country':'UK'
+                        },
+                        'pickup_time':'2017-09-15 15:30:00-00:01',
+                        'passengers':['a.passenger@acompany.com'],
+                        'booker':'a.booker@acompany.com',
+                        'quoted_price':65.25
+                      })
+    self.assertEqual(Booking(origin=UKAddress(number=55,
+                                            street='King Edward Road',
+                                            town='Teddington',
+                                            postcode='TW11 1AB',
+                                            country='UK'),
+                             destination=UKAddress(number=14,
+                                                 street='Forth Road',
+                                                 town='Upminster',
+                                                 postcode='RM14 2QY',
+                                                 country='UK'),
+                             pickup_time=datetime(2017, 9, 15, 15, 30,
+                                                  tzinfo=timezone('GB')),
+                             passengers=['a.passenger@acompany.com'],
+                             booker='a.booker@acompany.com',
+                             quoted_price=65.25),
+                      self.bs.booking_store.bookings[1])
 
 
 if __name__=='__main__':
