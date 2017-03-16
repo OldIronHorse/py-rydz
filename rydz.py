@@ -34,67 +34,12 @@ class MemberwiseEquality:
     return NotImplemented
 
 
-class Address(MemberwiseEquality):
-  def __init__(self, number=None, street=None, town=None, postcode=None, country=None):
-    self.number=number
-    self.street=street
-    self.town=town
-    self.postcode=postcode
-    self.country=country
-
-  def __str__(self):
-    return ', '.join(filter(lambda x : x is not None,
-                     [self.number, self.street, self.town, self.postcode, self.country]))
-
-  def json(self):
-    return {'number':self.number,
-            'street':self.street,
-            'town':self.town,
-            'postcode':self.postcode,
-            'country':self.country}
-
-
-class UKAddress(Address):
-  def __repr__(self):
-    return 'UKAddress(number={!r},street={!r},town={!r},postcode={!r},country={!r})'.format(
-      self.number, self.street, self.town, self.postcode, self.country)
-
-  def postcode_area(self):
-    return self.postcode.split(' ')[0]
-
-
-class USAddress(Address):
-  def __repr__(self):
-    return 'USAddress(number={!r},street={!r},town={!r},postcode={!r},country={!r})'.format(
-      self.number, self.street, self.town, self.postcode, self.country)
-
-  def postcode_area(self):
-    return self.postcode[:3]
-
-
-def uk_address_from_json(json):
-  return UKAddress(number=json['number'], street=json['street'],
-                   town=json['town'], postcode=['postcode'],
-                   country=['country'])
-
-def us_address_from_json(json):
-  return USAddress(number=json['number'], street=json['street'],
-                   town=json['town'], postcode=['postcode'],
-                   country=['country'])
-
-address_factory_by_country={'UK': uk_address_from_json,
-                            'US': us_address_from_json}
-
-def address_from_json(json):
-  return address_factory_by_country[json['country']](json)
-
-
 class PostcodeRateBook:
   def __init__(self, postcode_map):
     self.postcode_map=postcode_map
 
   def price(self, origin, destination):
-    return self.postcode_map[origin.postcode_area()][destination.postcode_area()]
+    return self.postcode_map[postcode_area(origin)][postcode_area(destination)]
 
 class DistanceSource:
   def distance(self, origin, destination):
@@ -116,8 +61,8 @@ class GoogleDistanceURL:
 
   def url(self, origin, destination):
     return 'https://maps.googleapis.com/maps/api/distancematrix/json?' +\
-            urlencode({'units': 'imperial', 'origins': origin,
-                       'destinations': destination, 'key': self.key}) 
+            urlencode({'units': 'imperial', 'origins': address_str(origin),
+                       'destinations': address_str(destination), 'key': self.key}) 
 
 
 class Distance(MemberwiseEquality):
@@ -133,7 +78,7 @@ class GoogleDistance:
     self.url=GoogleDistanceURL(key)
 
   def distance(self, origin, destination):
-    with urllib.request.urlopen(self.url.url(str(origin), str(destination))) as response:
+    with urllib.request.urlopen(self.url.url(origin, destination)) as response:
       json_response=json.loads(response.read());
       distance=json_response['rows'][0]['elements'][0]['distance']
       duration=json_response['rows'][0]['elements'][0]['duration']
@@ -145,22 +90,22 @@ class Pricer:
     self.ratebook=ratebook
 
   def json_quote(self, json):
-    origin=UKAddress(postcode=json['origin']['postcode'])
-    destination=UKAddress(postcode=json['destination']['postcode'])
+    origin=json['origin']
+    destination=json['destination']
     try:
-      return {'origin':json['origin'],
-              'destination':json['destination'],
+      return {'origin': origin,
+              'destination': destination,
               'price':self.ratebook.price(origin, destination)}
     except KeyError as e:
       key=e.args[0]
-      if key==origin.postcode_area():
+      if key==postcode_area(origin):
         error_address='Origin'
-      elif key==destination.postcode_area():
+      elif key==postcode_area(destination):
         error_address='Destination'
       else:
         error_address='Unknown'
-      return {'origin':json['origin'],
-              'destination':json['destination'],
+      return {'origin':origin,
+              'destination':destination,
               'error':"{} postcode '{}' not found".format(error_address, key)}
 
 
@@ -184,8 +129,8 @@ class JsonBookingStore:
                           for bid in self.booking_store.bookings}}
 
   def add(self, booking_json):
-    return self.booking_store.add(Booking(address_from_json(booking_json['origin']),
-                                          address_from_json(booking_json['destination']),
+    return self.booking_store.add(Booking(booking_json['origin'],
+                                          booking_json['destination'],
                                           booking_json['pickup_time'],
                                           booking_json['passengers'],
                                           booking_json['booker'],
@@ -206,8 +151,8 @@ class Booking(MemberwiseEquality):
     return "Booking(origin={!r},destination={!r},pickup_time={!r},passengers={!r},booker={!r},quoted_price={!r})".format(self.origin, self.destination, self.pickup_time, self.passengers, self.booker, self.quoted_price)
 
   def json(self):
-    return {'origin':self.origin.json(),
-            'destination':self.destination.json(),
+    return {'origin':self.origin,
+            'destination':self.destination,
             'pickup_time':str(self.pickup_time),
             'passengers':self.passengers,
             'booker':self.booker,

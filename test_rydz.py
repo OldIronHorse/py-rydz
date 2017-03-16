@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, mock_open, patch
 import urllib.request
 from datetime import datetime
 from pytz import timezone
-from rydz import PostcodeRateBook, Address, UKAddress,\
+from rydz import PostcodeRateBook, \
   DistanceSource, FlatRateDistanceRateBook, GoogleDistanceURL, Distance,\
   GoogleDistance, Pricer, BookingStore, Booking, JsonBookingStore, \
   address_str, postcode_area
@@ -38,20 +38,20 @@ class TestPostcodePricing(TestCase):
                                      'RM14':{'NW1':62.5, 'TW11':63.25}})
 
   def test_valid_address(self):
-    self.assertEqual(52.5, self.ratebook.price(UKAddress(postcode='NW1 1AB'),
-                                               UKAddress(postcode='RM14 2CD')))
-    self.assertEqual(63.25, self.ratebook.price(UKAddress(postcode='RM14 1AB'),
-                                                UKAddress(postcode='TW11 2CD')))
+    self.assertEqual(52.5, self.ratebook.price({'postcode': 'NW1 1AB', 'country': 'UK'},
+                                               {'postcode': 'RM14 2CD', 'country': 'UK'}))
+    self.assertEqual(63.25, self.ratebook.price({'postcode': 'RM14 1AB', 'country': 'UK'},
+                                                {'postcode': 'TW11 2CD', 'country': 'UK'}))
 
   def test_unknown_origin_postcode(self):
     with self.assertRaises(KeyError):
-      self.assertEqual(63.25, self.ratebook.price(UKAddress(postcode='RM12 1AB'),
-                                                  UKAddress(postcode='TW11 2CD')))
+      self.assertEqual(63.25, self.ratebook.price({'postcode': 'RM12 1AB', 'country': 'UK'},
+                                                  {'postcode': 'TW11 2CD', 'country': 'UK'}))
 
   def test_unknown_destination_postcode(self):
     with self.assertRaises(KeyError):
-      self.assertEqual(63.25, self.ratebook.price(UKAddress(postcode='RM14 1AB'),
-                                                  UKAddress(postcode='TW10 2CD')))
+      self.assertEqual(63.25, self.ratebook.price({'postcode': 'RM14 1AB', 'country': 'UK'},
+                                                  {'postcode': 'TW10 2CD', 'country': 'UK'}))
 
 
 class TestDistancePricing(TestCase):
@@ -59,10 +59,10 @@ class TestDistancePricing(TestCase):
     distance_source=MagicMock(DistanceSource)
     distance_source.distance=MagicMock(return_value=100)
     ratebook=FlatRateDistanceRateBook(distance_source, 0.5)
-    self.assertEqual(50, ratebook.price(Address(postcode='NW1 1AB'),
-                                        Address(postcode='RM14 2CD')))
-    distance_source.distance.assert_called_with(Address(postcode='NW1 1AB'),
-                                              Address(postcode='RM14 2CD')) 
+    self.assertEqual(50, ratebook.price({'postcode': 'NW1 1AB', 'country': 'UK'},
+                                        {'postcode': 'RM14 2CD', 'country': 'UK'}))
+    distance_source.distance.assert_called_with({'postcode': 'NW1 1AB', 'country': 'UK'},
+                                                {'postcode': 'RM14 2CD', 'country': 'UK'}) 
 
 class TestDistance(TestCase):
   def test_equal_true(self):
@@ -76,8 +76,8 @@ class TestGoogleDistanceURL(TestCase):
   def test_city_to_city(self):
     gdu=GoogleDistanceURL('my_key')
     self.assertEqual('https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial&origins=London%2C+UK&destinations=Edinburgh%2C+UK&key=my_key',
-                     gdu.url(Address(town='London', country='UK'),
-                             Address(town='Edinburgh', country='UK')))
+                     gdu.url({'town': 'London', 'country': 'UK'},
+                             {'town': 'Edinburgh', 'country': 'UK'}))
 
 
 class TestGoogleDistance(TestCase):
@@ -112,10 +112,10 @@ class TestGoogleDistance(TestCase):
     mock_urlopen.return_value=cm
     self.assertEqual(Distance(dist_text='414 mi', dist_value=666440,
                               time_text='7 hours 13 mins', time_value=25979),
-                     GoogleDistance('my_key').distance(Address(town='London',
-                                                               country='UK'),
-                                                       Address(town='Edinburgh',
-                                                               country='UK')))
+                     GoogleDistance('my_key').distance({'town': 'London',
+                                                        'country': 'UK'},
+                                                       {'town': 'Edinburgh',
+                                                        'country': 'UK'}))
     mock_urlopen.assert_called_with('https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial&origins=London%2C+UK&destinations=Edinburgh%2C+UK&key=my_key')
 
 
@@ -126,28 +126,36 @@ class TestJsonQuote(TestCase):
                                          'RM14':{'NW1':62.5, 'TW11':63.25}}))
 
   def test_postcode_to_postcode_valid(self):
-    self.assertEqual({"origin":{"postcode":"NW1 1AB"},
-                      "destination":{"postcode":"RM14 2CD"},
+    self.assertEqual({"origin":{"postcode":"NW1 1AB", 'country': 'UK'},
+                      "destination":{"postcode":"RM14 2CD", 'country': 'UK'},
                       "price":52.5},
-                      self.pricer.json_quote({"origin":{"postcode":"NW1 1AB"},
-                                              "destination":{"postcode":"RM14 2CD"}}))
-    self.assertEqual({"origin":{"postcode":"RM14 1AB"},
-                      "destination":{"postcode":"TW11 2CD"},
+                      self.pricer.json_quote({"origin":{"postcode":"NW1 1AB",
+                                                        'country': 'UK'},
+                                              "destination":{"postcode":"RM14 2CD",
+                                                             'country': 'UK'}}))
+    self.assertEqual({"origin":{"postcode":"RM14 1AB", 'country': 'UK'},
+                      "destination":{"postcode":"TW11 2CD", 'country': 'UK'},
                       "price":63.25},
-                      self.pricer.json_quote({"origin":{"postcode":"RM14 1AB"},
-                                              "destination":{"postcode":"TW11 2CD"}}))
+                      self.pricer.json_quote({"origin":{"postcode":"RM14 1AB",
+                                                        'country': 'UK'},
+                                              "destination":{"postcode":"TW11 2CD",
+                                                             'country': 'UK'}}))
 
   def test_postcode_to_postcode_not_found(self):
-    self.assertEqual({"origin":{"postcode":"NW9 1AB"},
-                      "destination":{"postcode":"RM14 2CD"},
+    self.assertEqual({"origin":{"postcode":"NW9 1AB", 'country': 'UK'},
+                      "destination":{"postcode":"RM14 2CD", 'country': 'UK'},
                       "error":"Origin postcode 'NW9' not found"},
-                      self.pricer.json_quote({"origin":{"postcode":"NW9 1AB"},
-                                              "destination":{"postcode":"RM14 2CD"}}))
-    self.assertEqual({"origin":{"postcode":"RM14 1AB"},
-                      "destination":{"postcode":"TW1 2CD"},
+                      self.pricer.json_quote({"origin":{"postcode":"NW9 1AB",
+                                                        'country': 'UK'},
+                                              "destination":{"postcode":"RM14 2CD",
+                                                             'country': 'UK'}}))
+    self.assertEqual({"origin":{"postcode":"RM14 1AB", 'country': 'UK'},
+                      "destination":{"postcode":"TW1 2CD", 'country': 'UK'},
                       "error":"Destination postcode 'TW1' not found"},
-                      self.pricer.json_quote({"origin":{"postcode":"RM14 1AB"},
-                                              "destination":{"postcode":"TW1 2CD"}}))
+                      self.pricer.json_quote({"origin":{"postcode":"RM14 1AB",
+                                                        'country': 'UK'},
+                                              "destination":{"postcode":"TW1 2CD",
+                                                             'country': 'UK'}}))
 
 
 class TestBookingStore(TestCase):
@@ -160,16 +168,16 @@ class TestBookingStore(TestCase):
 
   def test_json_single(self):
     self.maxDiff=None
-    self.bs.booking_store.bookings={1234:Booking(origin=Address(number=55,
-                                                  street='King Edward Road',
-                                                  town='Teddington',
-                                                  postcode='TW11 1AB',
-                                                  country='UK'),
-                                   destination=Address(number=14,
-                                                       street='Forth Road',
-                                                       town='Upminster',
-                                                       postcode='RM14 2QY',
-                                                       country='UK'),
+    self.bs.booking_store.bookings={1234:Booking(origin={'number': 55,
+                                                  'street': 'King Edward Road',
+                                                  'town': 'Teddington',
+                                                  'postcode': 'TW11 1AB',
+                                                  'country': 'UK'},
+                                   destination={'number': 14,
+                                                       'street': 'Forth Road',
+                                                       'town': 'Upminster',
+                                                       'postcode': 'RM14 2QY',
+                                                       'country': 'UK'},
                                    pickup_time=datetime(2017, 9, 15, 15, 30,
                                                         tzinfo=timezone('GB')),
                                    passengers=['a.passenger@acompany.com'],
@@ -218,22 +226,22 @@ class TestBookingStore(TestCase):
                         'booker':'a.booker@acompany.com',
                         'quoted_price':65.25
                       })
-    self.assertEqual(Booking(origin=UKAddress(number=55,
-                                            street='King Edward Road',
-                                            town='Teddington',
-                                            postcode='TW11 1AB',
-                                            country='UK'),
-                             destination=UKAddress(number=14,
-                                                 street='Forth Road',
-                                                 town='Upminster',
-                                                 postcode='RM14 2QY',
-                                                 country='UK'),
-                             pickup_time=datetime(2017, 9, 15, 15, 30,
-                                                  tzinfo=timezone('GB')),
+    self.assertEqual({1:Booking(origin={'number': 55,
+                                            'street': 'King Edward Road',
+                                            'town': 'Teddington',
+                                            'postcode': 'TW11 1AB',
+                                            'country': 'UK'},
+                             destination={'number': 14,
+                                                 'street': 'Forth Road',
+                                                 'town': 'Upminster',
+                                                 'postcode': 'RM14 2QY',
+                                                 'country': 'UK'},
+                             pickup_time=str(datetime(2017, 9, 15, 15, 30,
+                                                  tzinfo=timezone('GB'))),
                              passengers=['a.passenger@acompany.com'],
                              booker='a.booker@acompany.com',
-                             quoted_price=65.25),
-                      self.bs.booking_store.bookings[1])
+                             quoted_price=65.25)},
+                      self.bs.booking_store.bookings)
 
 
 if __name__=='__main__':
