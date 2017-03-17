@@ -24,12 +24,76 @@ def postcode_area(address):
   return postcode_area_by_country[address['country']](address)
 
 def is_usable_uk_address(address):
-  return address['postcode'] is not None and \
-    address['number'] is not None and \
+  return 'postcode' in address and \
+    'number' in address and \
+    'street' in address and \
     re.fullmatch(r'[A-Z]{2}[0-9]{1,2} [0-9][A-Z]{2}', address['postcode']) is not None
 
+us_states={'AL': ('Alabama', 'Ala.'),
+           'AK': ('Alaska', 'Alaska'),
+           'AS': ('American Samoa', ''),
+           'AZ': ('Arizona', 'Ariz.'),
+           'AR': ('Arkansas', 'Ark.'),
+           'CA': ('California', 'Calif.'),
+           'CO': ('Colorado', 'Colo.'),
+           'CT': ('Connecticut', 'Conn.'),
+           'DE': ('Delaware', 'Del.'),
+           'DC': ('Dist. of Columbia', 'D.C.'),
+           'FL': ('Florida', 'Fla.'),
+           'GA': ('Georgia', 'Ga.'),
+           'GU': ('Guam', 'Guam'),
+           'HI': ('Hawaii', 'Hawaii'),
+           'ID': ('Idaho', 'Idaho'),
+           'IL': ('Illinois', 'Ill.'),
+           'IN': ('Indiana', 'Ind.'),
+           'IA': ('Iowa', 'Iowa'),
+           'KS': ('Kansas', 'Kans.'),
+           'KY': ('Kentucky', 'Ky.'),
+           'LA': ('Louisiana', 'La.'),
+           'ME': ('Maine', 'Maine'),
+           'MD': ('Maryland', 'Md.'),
+           'MH': ('Marshall Islands'),
+           'MA': ('Massachusetts', 'Mass.'),
+           'MI': ('Michigan', 'Mich.'),
+           'FM': ('Micronesia'),
+           'MN': ('Minnesota', 'Minn.'),
+           'MS': ('Mississippi', 'Miss.'),
+           'MO': ('Missouri', 'Mo.'),
+           'MT': ('Montana', 'Mont.'),
+           'NE': ('Nebraska', 'Nebr.'),
+           'NV': ('Nevada', 'Nev.'),
+           'NH': ('New Hampshire', 'N.H.'),
+           'NJ': ('New Jersey', 'N.J.'),
+           'NM': ('New Mexico', 'N.M.'),
+           'NY': ('New York', 'N.Y.'),
+           'NC': ('North Carolina', 'N.C.'),
+           'ND': ('North Dakota', 'N.D.'),
+           'MP': ('Northern Marianas'),
+           'OH': ('Ohio', 'Ohio'),
+           'OK': ('Oklahoma', 'Okla.'),
+           'OR': ('Oregon', 'Ore.'),
+           'PW': ('Palau'),
+           'PA': ('Pennsylvania', 'Pa.'),
+           'PR': ('Puerto Rico', 'P.R.'),
+           'RI': ('Rhode Island', 'R.I.'),
+           'SC': ('South Carolina', 'S.C.'),
+           'SD': ('South Dakota', 'S.D.'),
+           'TN': ('Tennessee', 'Tenn.'),
+           'TX': ('Texas', 'Tex.'),
+           'UT': ('Utah', 'Utah'),
+           'VT': ('Vermont', 'Vt.'),
+           'VA': ('Virginia', 'Va.'),
+           'VI': ('Virgin Islands', 'V.I.'),
+           'WA': ('Washington', 'Wash.'),
+           'WV': ('West Virginia', 'W.Va.'),
+           'WI': ('Wisconsin', 'Wis.'),
+           'WY': ('Wyoming', 'Wyo.')}
+
 def is_usable_us_address(address):
-  pass
+  return ('state' not in address or address['state'] in us_states) and \
+    'number' in address and \
+    'street' in address and \
+    re.fullmatch(r'[0-9]{5}', address['postcode']) is not None
 
 address_validators={'UK': is_usable_uk_address,
                     'US': is_usable_us_address}

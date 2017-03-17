@@ -223,7 +223,7 @@ class TestUsableAddress(TestCase):
                                         'country':'UK'}))
 
   def test_missing_street(self):
-    self.assertTrue(is_usable_address({'number':14,
+    self.assertFalse(is_usable_address({'number':14,
                                        'town':'Upminster',
                                        'postcode':'RM14 2QY',
                                        'country':'UK'}))
@@ -246,6 +246,59 @@ class TestUsableAddress(TestCase):
                                         'town':'Upminster',
                                         'postcode':'90210',
                                         'country':'UK'}))
+
+  def test_valid_us(self):
+    self.assertTrue(is_usable_address({'number':1202,
+                                       'street':'42nd Street',
+                                       'city':'New York',
+                                       'state':'NY',
+                                       'postcode':'01234',
+                                       'country':'US'}))
+
+  def test_minimal_us(self):
+    self.assertTrue(is_usable_address({'number': 52,
+                                       'street': 'Hutton Drive',
+                                       'postcode': '90210',
+                                       'country': 'US'}))
+
+  def test_missing_nubmer_us(self):
+    self.assertFalse(is_usable_address({'street': 'Hutton Drive',
+                                        'postcode': '90210',
+                                        'country': 'US'}))
+
+  def test_missing_street_us(self):
+    self.assertFalse(is_usable_address({'number': 52,
+                                        'postcode': '90210',
+                                        'country': 'US'}))
+
+  def test_missing_postcode_us(self):
+    self.assertFalse(is_usable_address({'number': 52,
+                                        'street': 'Hutton Drive',
+                                        'country': 'US'}))
+
+  def test_malformed_postcode_too_short_us(self):
+    self.assertFalse(is_usable_address({'number':1202,
+                                        'street':'42nd Street',
+                                        'city':'New York',
+                                        'state':'NY',
+                                        'postcode':'0123',
+                                        'country':'US'}))
+
+  def test_malformed_postcode_too_long_us(self):
+    self.assertFalse(is_usable_address({'number':1202,
+                                        'street':'42nd Street',
+                                        'city':'New York',
+                                        'state':'NY',
+                                        'postcode':'012345',
+                                        'country':'US'}))
+
+  def test_malformed_postcode_nonnumeric_us(self):
+    self.assertFalse(is_usable_address({'number':1202,
+                                        'street':'42nd Street',
+                                        'city':'New York',
+                                        'state':'NY',
+                                        'postcode':'01w35',
+                                        'country':'US'}))
 
 
 
