@@ -177,18 +177,22 @@ class Pricer:
     try:
       return {'origin': origin,
               'destination': destination,
+              'status': 'OK',
               'price':self.ratebook.price(origin, destination)}
     except KeyError as e:
       key=e.args[0]
-      if key==postcode_area(origin):
-        error_address='Origin'
+      if key=='postcode':
+        reason='postcode required for pricing'
+      elif key==postcode_area(origin):
+        reason="origin postcode not found"
       elif key==postcode_area(destination):
-        error_address='Destination'
+        reason="destination postcode not found"
       else:
-        error_address='Unknown'
+        reason='Unknown'
       return {'origin':origin,
               'destination':destination,
-              'error':"{} postcode '{}' not found".format(error_address, key)}
+              'status':'ERROR',
+              'reason':reason}
 
 
 class BookingStore:
@@ -198,7 +202,7 @@ class BookingStore:
 
   def add(self, booking):
     self.last_id+=1
-    self.bookings[self.last_id]=booking
-    return self.last_id
+    self.bookings[str(self.last_id)]=booking
+    return str(self.last_id)
 
 

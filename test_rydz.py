@@ -128,6 +128,7 @@ class TestJsonQuote(TestCase):
   def test_postcode_to_postcode_valid(self):
     self.assertEqual({"origin":{"postcode":"NW1 1AB", 'country': 'UK'},
                       "destination":{"postcode":"RM14 2CD", 'country': 'UK'},
+                      "status":"OK",
                       "price":52.5},
                       self.pricer.quote({"origin":{"postcode":"NW1 1AB",
                                                    'country': 'UK'},
@@ -135,6 +136,7 @@ class TestJsonQuote(TestCase):
                                                         'country': 'UK'}}))
     self.assertEqual({"origin":{"postcode":"RM14 1AB", 'country': 'UK'},
                       "destination":{"postcode":"TW11 2CD", 'country': 'UK'},
+                      "status":"OK",
                       "price":63.25},
                       self.pricer.quote({"origin":{"postcode":"RM14 1AB",
                                                    'country': 'UK'},
@@ -144,14 +146,16 @@ class TestJsonQuote(TestCase):
   def test_postcode_to_postcode_not_found(self):
     self.assertEqual({"origin":{"postcode":"NW9 1AB", 'country': 'UK'},
                       "destination":{"postcode":"RM14 2CD", 'country': 'UK'},
-                      "error":"Origin postcode 'NW9' not found"},
+                      "status":"ERROR",
+                      "reason":"origin postcode not found"},
                       self.pricer.quote({"origin":{"postcode":"NW9 1AB",
                                                    'country': 'UK'},
                                          "destination":{"postcode":"RM14 2CD",
                                                         'country': 'UK'}}))
     self.assertEqual({"origin":{"postcode":"RM14 1AB", 'country': 'UK'},
                       "destination":{"postcode":"TW1 2CD", 'country': 'UK'},
-                      "error":"Destination postcode 'TW1' not found"},
+                      "status":"ERROR",
+                      "reason":"destination postcode not found"},
                       self.pricer.quote({"origin":{"postcode":"RM14 1AB",
                                                    'country': 'UK'},
                                          "destination":{"postcode":"TW1 2CD",
@@ -168,7 +172,8 @@ class TestBookingStore(TestCase):
 
   def test_json_add(self):
     self.maxDiff=None
-    self.bs.add({'origin':{
+    self.assertEqual('1',
+                     self.bs.add({'origin':{
                           'number':55,
                           'street':'King Edward Road',
                           'town':'Teddington',
@@ -186,8 +191,8 @@ class TestBookingStore(TestCase):
                         'passengers':['a.passenger@acompany.com'],
                         'booker':'a.booker@acompany.com',
                         'quoted_price':65.25
-                      })
-    self.assertEqual({1:{'origin': {'number': 55,
+                      }))
+    self.assertEqual({'1':{'origin': {'number': 55,
                                             'street': 'King Edward Road',
                                             'town': 'Teddington',
                                             'postcode': 'TW11 1AB',
