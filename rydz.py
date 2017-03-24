@@ -205,4 +205,6 @@ class BookingStore:
     self.bookings[str(self.last_id)]=booking
     return str(self.last_id)
 
+  def pop(self, booking_id):
+    return self.bookings.pop(booking_id)
 

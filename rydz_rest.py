@@ -57,24 +57,26 @@ def bookings():
 def bookings_by_id(booking_id):
   content = request.get_json()
   app.logger.debug('/bookings/%s: %s', booking_id, content)
-  if request.method=='GET':
-    #fetch booking details
-    try:
+  try:
+    if request.method=='GET':
+      #fetch booking details
       response={'status':'OK',
                 'booking':booking_store.bookings[booking_id],
                 'booking_id':booking_id}
-    except KeyError:
-      response={'status':'ERROR',
-               'reason':'no booking for id',
-               'booking_id':booking_id}
-  elif request.method=='PUT':
-    #update booking details
-    pass
-  elif request.method=='DELETE':
-    #cancel booking
-    pass
-  else:
-    pass
+    elif request.method=='PUT':
+      #update booking details
+      pass
+    elif request.method=='DELETE':
+      #cancel booking
+      response={'status': 'OK',
+                'booking': booking_store.pop(booking_id)}
+      pass
+    else:
+      pass
+  except KeyError:
+    response={'status':'ERROR',
+             'reason':'no booking for id',
+             'booking_id':booking_id}
   app.logger.debug('/bookings/%s: %s', booking_id, response)
   return Response(json.dumps(response), mimetype='application/json')
 

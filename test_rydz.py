@@ -166,6 +166,11 @@ class TestBookingStore(TestCase):
   def setUp(self):
     self.bs=BookingStore()
 
+  def test_pop(self):
+    self.bs.bookings={1: "booking 1", 2: "booking 2"}
+    self.assertEqual("booking 1", self.bs.pop(1))
+    self.assertEqual({2: "booking 2"}, self.bs.bookings)
+
   def test_json_empty(self):
     self.assertEqual({},
                      self.bs.bookings)
