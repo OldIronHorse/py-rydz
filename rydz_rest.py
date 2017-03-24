@@ -2,6 +2,7 @@
 from rydz import Pricer, PostcodeRateBook, BookingStore, is_usable_address
 import logging
 import json
+from datetime import datetime
 from flask import Flask, request, Response
 app = Flask(__name__)
 
@@ -24,20 +25,26 @@ def bookings():
   content = request.get_json()
   app.logger.debug('/bookings: %s', content)
   if request.method=='POST':
-    #create a booking
-    booking_json=request.get_json()
-    if not is_usable_address(booking_json['origin']):
-      response={'status':'ERROR','reason':'invalid origin address'}
-    elif not is_usable_address(booking_json['destination']):
-      response={'status':'ERROR','reason':'invalid destination address'}
-    elif 'pickup_time' not in booking_json:
-      response={'status':'ERROR','reason':'no pick up time specified'}
-    else:
-      booking_json['quoted_price']=postcode_pricer.quote(booking_json)['price']
-      booking_id=booking_store.add(booking_json)
-      response={"status":'OK',
-                "booking_id": booking_id,
-                "booking": booking_store.bookings[booking_id]}
+    try:
+      #create a booking
+      booking_json=request.get_json()
+      if not is_usable_address(booking_json['origin']):
+        response={'status':'ERROR','reason':'invalid origin address'}
+      elif not is_usable_address(booking_json['destination']):
+        response={'status':'ERROR','reason':'invalid destination address'}
+      else:
+        booking_json['quoted_price']=postcode_pricer.quote(booking_json)['price']
+        datetime.strptime(booking_json['pickup_time'], '%Y-%m-%d %H:%M')
+        booking_id=booking_store.add(booking_json)
+        response={"status":'OK',
+                  "booking_id": booking_id,
+                  "booking": booking_store.bookings[booking_id]}
+    except ValueError as ve:
+      response={"status": "ERROR",
+                "reason": str(ve)}
+    except KeyError as ke:
+      response={"status": "ERROR",
+                "reason": "{} missing".format(ke)}
   elif request.method=='GET':
     #list bookings
     response={'status':'OK', 'bookings':booking_store.bookings}

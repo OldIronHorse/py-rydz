@@ -187,7 +187,7 @@ class TestBookingStore(TestCase):
                           'postcode':'RM14 2QY',
                           'country':'UK'
                         },
-                        'pickup_time':'2017-09-15 15:30:00-00:01',
+                        'pickup_time':'2017-09-15 15:30',
                         'passengers':['a.passenger@acompany.com'],
                         'booker':'a.booker@acompany.com',
                         'quoted_price':65.25
@@ -202,8 +202,7 @@ class TestBookingStore(TestCase):
                                                  'town': 'Upminster',
                                                  'postcode': 'RM14 2QY',
                                                  'country': 'UK'},
-                             'pickup_time': str(datetime(2017, 9, 15, 15, 30,
-                                                  tzinfo=timezone('GB'))),
+                             'pickup_time': '2017-09-15 15:30',
                              'passengers': ['a.passenger@acompany.com'],
                              'booker': 'a.booker@acompany.com',
                              'quoted_price': 65.25}},
