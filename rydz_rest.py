@@ -12,6 +12,27 @@ postcode_pricer=Pricer(PostcodeRateBook({'TW11':{'NW1':22.5, 'RM14':65.25},
 
 booking_store=BookingStore()
 
+def add_booking(booking_json):
+  try:
+    if not is_usable_address(booking_json['origin']):
+      return {'status':'ERROR','reason':'invalid origin address'}
+    elif not is_usable_address(booking_json['destination']):
+      return {'status':'ERROR','reason':'invalid destination address'}
+    else:
+      booking_json['quoted_price']=postcode_pricer.quote(booking_json)['price']
+      datetime.strptime(booking_json['pickup_time'], '%Y-%m-%d %H:%M')
+      booking_id=booking_store.add(booking_json)
+      return {"status":'OK',
+              "booking_id": booking_id,
+              "booking": booking_store.bookings[booking_id]}
+  except ValueError as ve:
+    return {"status": "ERROR",
+            "reason": str(ve)}
+  except KeyError as ke:
+    return {"status": "ERROR",
+            "reason": "{} missing".format(ke)}
+  
+
 @app.route("/quote") #GET by default
 def quote():
   content = request.get_json()
@@ -25,26 +46,7 @@ def bookings():
   content = request.get_json()
   app.logger.debug('/bookings: %s', content)
   if request.method=='POST':
-    try:
-      #create a booking
-      booking_json=request.get_json()
-      if not is_usable_address(booking_json['origin']):
-        response={'status':'ERROR','reason':'invalid origin address'}
-      elif not is_usable_address(booking_json['destination']):
-        response={'status':'ERROR','reason':'invalid destination address'}
-      else:
-        booking_json['quoted_price']=postcode_pricer.quote(booking_json)['price']
-        datetime.strptime(booking_json['pickup_time'], '%Y-%m-%d %H:%M')
-        booking_id=booking_store.add(booking_json)
-        response={"status":'OK',
-                  "booking_id": booking_id,
-                  "booking": booking_store.bookings[booking_id]}
-    except ValueError as ve:
-      response={"status": "ERROR",
-                "reason": str(ve)}
-    except KeyError as ke:
-      response={"status": "ERROR",
-                "reason": "{} missing".format(ke)}
+    response=add_booking(request.get_json())
   elif request.method=='GET':
     #list bookings
     response={'status':'OK', 'bookings':booking_store.bookings}
@@ -65,12 +67,12 @@ def bookings_by_id(booking_id):
                 'booking_id':booking_id}
     elif request.method=='PUT':
       #update booking details
-      pass
+      booking_store.bookings[booking_id]
+      response=add_booking(request.get_json())
     elif request.method=='DELETE':
       #cancel booking
       response={'status': 'OK',
                 'booking': booking_store.pop(booking_id)}
-      pass
     else:
       pass
   except KeyError:
