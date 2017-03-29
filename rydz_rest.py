@@ -22,6 +22,8 @@ def add_booking(booking_json):
       booking_json['quoted_price']=postcode_pricer.quote(booking_json)['price']
       datetime.strptime(booking_json['pickup_time'], '%Y-%m-%d %H:%M')
       booking_id=booking_store.add(booking_json)
+      booking_json['booker']
+      booking_json['passengers']
       return {"status":'OK',
               "booking_id": booking_id,
               "booking": booking_store.bookings[booking_id]}
