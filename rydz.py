@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 import urllib.request
 import json
 import re
+from datetime import datetime
 
 def address_str(address):
   return ', '.join(filter(lambda x : x is not None,
@@ -23,11 +24,23 @@ postcode_area_by_country={'UK': postcode_area_uk,
 def postcode_area(address):
   return postcode_area_by_country[address['country']](address)
 
-def is_usable_uk_address(address):
-  return 'postcode' in address and \
-    'number' in address and \
-    'street' in address and \
-    re.fullmatch(r'[A-Z]{2}[0-9]{1,2} [0-9][A-Z]{2}', address['postcode']) is not None
+class RydzException(Exception):
+  pass
+
+
+class InvalidAddressException(RydzException):
+  pass
+
+
+def validate_uk_address(address):
+  try:
+    address['number']
+    address['town']
+    address['street']
+    if re.fullmatch(r'[A-Z]{2}[0-9]{1,2} [0-9][A-Z]{2}', address['postcode']) is None:
+      raise InvalidAddressException("'postcode'")
+  except KeyError as ke:
+    raise InvalidAddressException(str(ke))
 
 us_states={'AL': ('Alabama', 'Ala.'),
            'AK': ('Alaska', 'Alaska'),
@@ -90,19 +103,29 @@ us_states={'AL': ('Alabama', 'Ala.'),
            'WY': ('Wyoming', 'Wyo.')}
 
 def is_usable_us_address(address):
-  return ('state' not in address or address['state'] in us_states) and \
-    'number' in address and \
-    'street' in address and \
-    re.fullmatch(r'[0-9]{5}', address['postcode']) is not None
+  #return ('state' not in address or address['state'] in us_states) and \
+  try:
+    address['number']
+    address['street']
+    if re.fullmatch(r'[0-9]{5}', address['postcode']) is None:
+      raise InvalidAddressException("'postcode'")
+  except KeyError as ke:
+    raise InvalidAddressException(str(ke))
 
-address_validators={'UK': is_usable_uk_address,
+address_validators={'UK': validate_uk_address,
                     'US': is_usable_us_address}
 
-def is_usable_address(address):
+def validate_address(address):
   try:
-    return address_validators[address['country']](address)
-  except KeyError:
-    return False
+    address_validators[address['country']](address)
+  except KeyError as ke:
+    if str(ke)=="'country'":
+      raise InvalidAddressException(str(ke))
+    else:
+      raise InvalidAddressException('Unsupported country: {}'.format(str(ke)))
+
+def validate_booking(booking):
+  pass
 
 class MemberwiseEquality:
   def __eq__(self, other):
@@ -194,17 +217,22 @@ class Pricer:
               'status':'ERROR',
               'reason':reason}
 
+#TODO factor out explicit validation
+#TODO add update
 
-class BookingStore:
-  def __init__(self):
-    self.bookings={}
-    self.last_id=0
-
-  def add(self, booking):
-    self.last_id+=1
-    self.bookings[str(self.last_id)]=booking
-    return str(self.last_id)
-
-  def pop(self, booking_id):
-    return self.bookings.pop(booking_id)
-
+def add_booking(bookings, booking_json):
+  try:
+    validate_address(booking_json['origin'])
+    validate_address(booking_json['destination'])
+    datetime.strptime(booking_json['pickup_time'], '%Y-%m-%d %H:%M')
+    booking_json['booker']
+    booking_json['passengers']
+    booking_id=bookings.insert(booking_json)
+    return {"status":'OK',
+            "booking": bookings.find_one({"_id":booking_id})}
+  except ValueError as ve:
+    return {"status": "ERROR",
+            "reason": str(ve)}
+  except KeyError as ke:
+    return {"status": "ERROR",
+            "reason": "{} missing".format(ke)}

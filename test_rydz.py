@@ -6,8 +6,9 @@ from datetime import datetime
 from pytz import timezone
 from rydz import PostcodeRateBook, \
   DistanceSource, FlatRateDistanceRateBook, GoogleDistanceURL, Distance,\
-  GoogleDistance, Pricer, BookingStore, \
-  address_str, postcode_area, is_usable_address
+  GoogleDistance, Pricer, add_booking, validate_booking, \
+  InvalidAddressException, \
+  address_str, postcode_area, validate_address
 
 class TestAddress(TestCase):
   def test_postcode_area_UK(self):
@@ -161,24 +162,52 @@ class TestJsonQuote(TestCase):
                                          "destination":{"postcode":"TW1 2CD",
                                                         'country': 'UK'}}))
 
+class MockMongoCollection:
+  def __init__(self):
+    self.last_id=0
+    self.rows=[]
 
-class TestBookingStore(TestCase):
+  def insert(self, doc):
+    self.last_id+=1
+    doc_=doc.copy()
+    doc_['_id']=self.last_id
+    self.rows.append(doc_)
+    return self.last_id
+
+  def find_one(self, key_map):
+    result_rows=self.rows
+    for k in key_map:
+      filter(lambda r: r[k]==key_map[k], result_rows)
+    return list(result_rows)[0]
+
+class TestAddBooking(TestCase):
   def setUp(self):
-    self.bs=BookingStore()
-
-  def test_pop(self):
-    self.bs.bookings={1: "booking 1", 2: "booking 2"}
-    self.assertEqual("booking 1", self.bs.pop(1))
-    self.assertEqual({2: "booking 2"}, self.bs.bookings)
-
-  def test_json_empty(self):
-    self.assertEqual({},
-                     self.bs.bookings)
+    self.bs=MockMongoCollection()
 
   def test_json_add(self):
     self.maxDiff=None
-    self.assertEqual('1',
-                     self.bs.add({'origin':{
+    self.assertEqual({'status':'OK',
+                      'booking':{'_id':1,
+                        'origin':{
+                            'number':55,
+                            'street':'King Edward Road',
+                            'town':'Teddington',
+                            'postcode':'TW11 1AB',
+                            'country':'UK'
+                         },
+                         'destination':{
+                            'number':14,
+                            'street':'Forth Road',
+                            'town':'Upminster',
+                            'postcode':'RM14 2QY',
+                            'country':'UK'
+                         },
+                          'pickup_time':'2017-09-15 15:30',
+                          'passengers':['a.passenger@acompany.com'],
+                          'booker':'a.booker@acompany.com',
+                          'quoted_price':65.25
+                      }},
+                     add_booking(self.bs,{'origin':{
                           'number':55,
                           'street':'King Edward Road',
                           'town':'Teddington',
@@ -197,118 +226,163 @@ class TestBookingStore(TestCase):
                         'booker':'a.booker@acompany.com',
                         'quoted_price':65.25
                       }))
-    self.assertEqual({'1':{'origin': {'number': 55,
-                                            'street': 'King Edward Road',
-                                            'town': 'Teddington',
-                                            'postcode': 'TW11 1AB',
-                                            'country': 'UK'},
-                             'destination': {'number': 14,
-                                                 'street': 'Forth Road',
-                                                 'town': 'Upminster',
-                                                 'postcode': 'RM14 2QY',
-                                                 'country': 'UK'},
-                             'pickup_time': '2017-09-15 15:30',
-                             'passengers': ['a.passenger@acompany.com'],
-                             'booker': 'a.booker@acompany.com',
-                             'quoted_price': 65.25}},
-                      self.bs.bookings)
+    self.assertEqual([{'_id':1,
+                       'origin': {'number': 55,
+                                  'street': 'King Edward Road',
+                                  'town': 'Teddington',
+                                  'postcode': 'TW11 1AB',
+                                  'country': 'UK'},
+                        'destination': {'number': 14,
+                                        'street': 'Forth Road',
+                                        'town': 'Upminster',
+                                        'postcode': 'RM14 2QY',
+                                        'country': 'UK'},
+                        'pickup_time': '2017-09-15 15:30',
+                        'passengers': ['a.passenger@acompany.com'],
+                        'booker': 'a.booker@acompany.com',
+                        'quoted_price': 65.25}],
+                      self.bs.rows)
 
 
 class TestUsableAddress(TestCase):
   def test_empty(self):
-    self.assertFalse(is_usable_address({}))
+    with self.assertRaises(InvalidAddressException) as context:
+      self.assertFalse(validate_address({}))
 
   def test_unsupported_country(self):
-    self.assertFalse(is_usable_address({'number':14,
-                                        'street':'Forth Road',
-                                        'town':'Upminster',
-                                        'postcode':'RM14 2QY',
-                                        'country':'FR'}))
+    with self.assertRaises(InvalidAddressException) as context:
+      self.assertFalse(validate_address({'number':14,
+                                          'street':'Forth Road',
+                                          'town':'Upminster',
+                                          'postcode':'RM14 2QY',
+                                          'country':'FR'}))
+    self.assertEqual("Unsupported country: 'FR'", str(context.exception))
 
   def test_missing_number(self):
-    self.assertFalse(is_usable_address({'street':'Forth Road',
-                                        'town':'Upminster',
-                                        'postcode':'RM14 2QY',
-                                        'country':'UK'}))
+    with self.assertRaises(InvalidAddressException) as context:
+      self.assertFalse(validate_address({'street':'Forth Road',
+                                          'town':'Upminster',
+                                          'postcode':'RM14 2QY',
+                                          'country':'UK'}))
+    self.assertEqual("'number'", str(context.exception))
 
   def test_missing_street(self):
-    self.assertFalse(is_usable_address({'number':14,
-                                       'town':'Upminster',
-                                       'postcode':'RM14 2QY',
-                                       'country':'UK'}))
+    with self.assertRaises(InvalidAddressException) as context:
+      self.assertFalse(validate_address({'number':14,
+                                         'town':'Upminster',
+                                         'postcode':'RM14 2QY',
+                                         'country':'UK'}))
+    self.assertEqual("'street'", str(context.exception))
 
   def test_missing_town(self):
-    self.assertTrue(is_usable_address({'number':14,
-                                       'street':'Forth Road',
-                                       'postcode':'RM14 2QY',
-                                       'country':'UK'}))
+    with self.assertRaises(InvalidAddressException) as context:
+      self.assertTrue(validate_address({'number':14,
+                                         'street':'Forth Road',
+                                         'postcode':'RM14 2QY',
+                                         'country':'UK'}))
+    self.assertEqual("'town'", str(context.exception))
 
   def test_missing_country(self):
-    self.assertFalse(is_usable_address({'number':14,
-                                        'street':'Forth Road',
-                                        'town':'Upminster',
-                                        'postcode':'RM14 2QY'}))
+    with self.assertRaises(InvalidAddressException) as context:
+      self.assertFalse(validate_address({'number':14,
+                                          'street':'Forth Road',
+                                          'town':'Upminster',
+                                          'postcode':'RM14 2QY'}))
+    self.assertEqual("'country'", str(context.exception))
 
   def test_malformed_postcode_uk(self):  
-    self.assertFalse(is_usable_address({'number':14,
-                                        'street':'Forth Road',
-                                        'town':'Upminster',
-                                        'postcode':'90210',
-                                        'country':'UK'}))
+    with self.assertRaises(InvalidAddressException) as context:
+      self.assertFalse(validate_address({'number':14,
+                                          'street':'Forth Road',
+                                          'town':'Upminster',
+                                          'postcode':'90210',
+                                          'country':'UK'}))
+    self.assertEqual("'postcode'", str(context.exception))
 
   def test_valid_us(self):
-    self.assertTrue(is_usable_address({'number':1202,
-                                       'street':'42nd Street',
-                                       'city':'New York',
-                                       'state':'NY',
-                                       'postcode':'01234',
-                                       'country':'US'}))
+    validate_address({'number':1202,
+                       'street':'42nd Street',
+                       'city':'New York',
+                       'state':'NY',
+                       'postcode':'01234',
+                       'country':'US'})
 
   def test_minimal_us(self):
-    self.assertTrue(is_usable_address({'number': 52,
-                                       'street': 'Hutton Drive',
-                                       'postcode': '90210',
-                                       'country': 'US'}))
+    validate_address({'number': 52,
+                       'street': 'Hutton Drive',
+                       'postcode': '90210',
+                       'country': 'US'})
 
-  def test_missing_nubmer_us(self):
-    self.assertFalse(is_usable_address({'street': 'Hutton Drive',
-                                        'postcode': '90210',
-                                        'country': 'US'}))
+  def test_missing_number_us(self):
+    with self.assertRaises(InvalidAddressException) as context:
+      self.assertFalse(validate_address({'street': 'Hutton Drive',
+                                          'postcode': '90210',
+                                          'country': 'US'}))
+    self.assertEqual("'number'", str(context.exception))
 
   def test_missing_street_us(self):
-    self.assertFalse(is_usable_address({'number': 52,
-                                        'postcode': '90210',
-                                        'country': 'US'}))
+    with self.assertRaises(InvalidAddressException) as context:
+      self.assertFalse(validate_address({'number': 52,
+                                          'postcode': '90210',
+                                          'country': 'US'}))
+    self.assertEqual("'street'", str(context.exception))
 
   def test_missing_postcode_us(self):
-    self.assertFalse(is_usable_address({'number': 52,
-                                        'street': 'Hutton Drive',
-                                        'country': 'US'}))
+    with self.assertRaises(InvalidAddressException) as context:
+      self.assertFalse(validate_address({'number': 52,
+                                          'street': 'Hutton Drive',
+                                          'country': 'US'}))
+    self.assertEqual("'postcode'", str(context.exception))
 
   def test_malformed_postcode_too_short_us(self):
-    self.assertFalse(is_usable_address({'number':1202,
-                                        'street':'42nd Street',
-                                        'city':'New York',
-                                        'state':'NY',
-                                        'postcode':'0123',
-                                        'country':'US'}))
+    with self.assertRaises(InvalidAddressException) as context:
+      validate_address({'number':1202,
+                         'street':'42nd Street',
+                         'city':'New York',
+                         'state':'NY',
+                         'postcode':'0123',
+                         'country':'US'})
+    self.assertEqual("'postcode'", str(context.exception))
 
   def test_malformed_postcode_too_long_us(self):
-    self.assertFalse(is_usable_address({'number':1202,
-                                        'street':'42nd Street',
-                                        'city':'New York',
-                                        'state':'NY',
-                                        'postcode':'012345',
-                                        'country':'US'}))
+    with self.assertRaises(InvalidAddressException) as context:
+      validate_address({'number':1202,
+                         'street':'42nd Street',
+                         'city':'New York',
+                         'state':'NY',
+                         'postcode':'012345',
+                         'country':'US'})
+    self.assertEqual("'postcode'", str(context.exception))
 
   def test_malformed_postcode_nonnumeric_us(self):
-    self.assertFalse(is_usable_address({'number':1202,
-                                        'street':'42nd Street',
-                                        'city':'New York',
-                                        'state':'NY',
-                                        'postcode':'01w35',
-                                        'country':'US'}))
+    with self.assertRaises(InvalidAddressException) as context:
+      validate_address({'number':1202,
+                         'street':'42nd Street',
+                         'city':'New York',
+                         'state':'NY',
+                         'postcode':'01w35',
+                         'country':'US'})
+    self.assertEqual("'postcode'", str(context.exception))
 
+
+class TestValidateBooking(TestCase):
+  def test_valid_booking_uk(self):
+    validate_booking({'origin':{
+                        'number':55,
+                        'street':'King Edward Road',
+                        'town':'Teddington',
+                        'postcode':'TW11 1AB',
+                        'country':'UK'},
+                      'destination':{
+                        'number':14,
+                        'street':'Forth Road',
+                        'town':'Upminster',
+                        'postcode':'RM14 2QY',
+                        'country':'UK'},
+                      'pickup_time':'2017-09-15 15:30',
+                      'passengers':['a.passenger@acompany.com'],
+                      'booker':'a.booker@acompany.com',
+                      'quoted_price':65.25})
 
 
 if __name__=='__main__':
