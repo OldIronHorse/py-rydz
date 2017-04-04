@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/env python
 from rydz import Pricer, PostcodeRateBook, add_booking
 import logging
 import json

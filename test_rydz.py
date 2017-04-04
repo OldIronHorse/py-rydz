@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3
+#!/usr/bin/env python
 from unittest import TestCase,main
 from unittest.mock import MagicMock, mock_open, patch
 import urllib.request
